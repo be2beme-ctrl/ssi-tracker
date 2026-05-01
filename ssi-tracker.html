@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SSI Tracker">
+<meta name="theme-color" content="#1a2332">
+<title>SSI Tracker</title>
+<style>
+  :root {
+    --bg: #1a2332;
+    --bg2: #232f42;
+    --bg3: #2c3a52;
+    --card: #263044;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0f4ff;
+    --muted: #8899bb;
+    --accent: #4a9eff;
+    --accent2: #64b5f6;
+    --green: #4caf7d;
+    --green2: #81c995;
+    --amber: #ffb74d;
+    --red: #ef5350;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --tab-h: 64px;
+    font-size: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Georgia', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: calc(var(--safe-top) + 12px) 20px 12px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .header-inner { display: flex; align-items: baseline; gap: 10px; }
+  .header h1 { font-size: 19px; font-weight: normal; letter-spacing: 0.02em; color: var(--text); }
+  .header-sub { font-size: 12px; color: var(--muted); font-style: italic; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; }
+  .header-reconcile { font-size: 11px; color: var(--amber); margin-top: 4px; line-height: 1.4; }
+
+  .tab-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    padding-bottom: var(--safe-bottom);
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    display: flex;
+  }
+  .tab-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 8px 2px; border: none; background: transparent; color: var(--muted);
+    font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer;
+    gap: 4px; transition: color 0.15s;
+  }
+  .tab-btn.active { color: var(--accent); }
+  .tab-icon { font-size: 20px; line-height: 1; }
+
+  .content {
+    padding-top: calc(var(--safe-top) + 72px);
+    padding-bottom: calc(var(--tab-h) + var(--safe-bottom) + 16px);
+    padding-left: 16px; padding-right: 16px;
+    min-height: 100vh;
+  }
+  .pane { display: none; }
+  .pane.active { display: block; }
+
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .metric {
+    background: var(--card); border-radius: 12px;
+    padding: 14px; border: 1px solid var(--border);
+  }
+  .metric-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; }
+  .metric-value { font-size: 20px; font-weight: normal; color: var(--text); font-family: 'Georgia', serif; }
+  .metric-value.green { color: var(--green2); }
+  .metric-value.amber { color: var(--amber); }
+  .metric-value.red { color: var(--red); }
+
+  .card {
+    background: var(--card); border-radius: 14px;
+    border: 1px solid var(--border); overflow: hidden; margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); padding: 12px 16px 0;
+  }
+  .entry-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+  }
+  .entry-row:last-child { border-bottom: none; }
+  .entry-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .entry-body { flex: 1; min-width: 0; }
+  .entry-desc { font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-meta { font-size: 11px; color: var(--muted); margin-top: 2px; font-style: italic; }
+  .entry-amount { font-size: 15px; flex-shrink: 0; font-family: 'Georgia', serif; }
+  .entry-amount.green { color: var(--green2); }
+  .entry-amount.red { color: var(--red); }
+
+  .form-section { margin-bottom: 20px; }
+  .form-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px; display: block; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 15px;
+    padding: 12px 14px; font-family: 'Georgia', serif;
+    -webkit-appearance: none; appearance: none;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .form-textarea { min-height: 70px; resize: none; line-height: 1.5; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn-primary {
+    width: 100%; padding: 14px; background: var(--accent); color: #fff;
+    border: none; border-radius: 12px; font-size: 16px; font-family: 'Georgia', serif;
+    cursor: pointer; letter-spacing: 0.02em; margin-top: 8px;
+  }
+  .btn-primary:active { opacity: 0.85; transform: scale(0.99); }
+  .btn-danger { background: none; border: none; color: var(--red); font-size: 13px; cursor: pointer; padding: 4px 0; font-family: 'Georgia', serif; }
+
+  .note {
+    border-radius: 10px; padding: 10px 14px; font-size: 12px;
+    line-height: 1.6; margin-bottom: 14px; font-style: italic;
+  }
+  .note-amber { background: rgba(255,183,77,0.1); color: var(--amber); border: 1px solid rgba(255,183,77,0.2); }
+  .note-blue { background: rgba(74,158,255,0.1); color: var(--accent2); border: 1px solid rgba(74,158,255,0.2); }
+  .note-green { background: rgba(76,175,125,0.1); color: var(--green2); border: 1px solid rgba(76,175,125,0.2); }
+
+  .schedule-row { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .schedule-row:last-child { border-bottom: none; }
+  .schedule-month { flex: 1; font-size: 13px; }
+  .schedule-month-name { color: var(--text); }
+  .schedule-month-detail { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .schedule-owed { font-size: 14px; color: var(--amber); font-family: 'Georgia', serif; }
+  .badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-gray { background: rgba(136,153,187,0.15); color: var(--muted); }
+  .badge-amber { background: rgba(255,183,77,0.15); color: var(--amber); }
+  .badge-green { background: rgba(76,175,125,0.15); color: var(--green2); }
+
+  .assumption-row { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .assumption-row:last-child { border-bottom: none; }
+  .assumption-key { font-size: 13px; color: var(--muted); }
+  .assumption-val { font-size: 15px; color: var(--text); font-family: 'Georgia', serif; }
+  .assumption-input { background: transparent; border: none; border-bottom: 1px solid var(--accent); color: var(--accent); font-size: 15px; font-family: 'Georgia', serif; width: 90px; text-align: right; padding: 2px 0; }
+  .assumption-input:focus { outline: none; }
+
+  .export-text {
+    background: var(--bg2); border-radius: 10px; padding: 14px;
+    font-family: monospace; font-size: 11px; color: var(--muted);
+    white-space: pre-wrap; line-height: 1.6; max-height: 60vh; overflow-y: auto;
+    margin-top: 12px; border: 1px solid var(--border);
+  }
+  .section-heading { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 20px 0 10px; }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-style: italic; font-size: 14px; }
+
+  .totals-row { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; background: var(--bg3); }
+  .totals-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .totals-value { font-size: 16px; font-family: 'Georgia', serif; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="header-inner">
+      <h1>SSI Tracker</h1>
+      <span class="header-sub">private &amp; on-device</span>
+    </div>
+  </div>
+  <div class="header-reconcile" id="header-note"></div>
+</div>
+
+<div class="content">
+
+  <!-- SUMMARY -->
+  <div class="pane active" id="pane-summary">
+    <div class="metric-grid" id="metrics"></div>
+    <p class="section-heading">Recent activity</p>
+    <div class="card" id="recent-card"></div>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="pane" id="pane-schedule">
+    <div class="note note-blue">Month-by-month: what was paid vs. what SSA should have paid. Amber = backpay still owed.</div>
+    <div class="card" id="schedule-card"></div>
+    <div class="card">
+      <div class="totals-row">
+        <span class="totals-label">Total owed (per schedule)</span>
+        <span class="totals-value amber" id="sched-total-owed"></span>
+      </div>
+      <div class="totals-row">
+        <span class="totals-label">SSA paying total</span>
+        <span class="totals-value green" id="sched-total-promised"></span>
+      </div>
+      <div class="totals-row" style="border-top:1px solid var(--border)">
+        <span class="totals-label">Unexplained difference</span>
+        <span class="totals-value amber" id="sched-diff"></span>
+      </div>
+    </div>
+    <div class="note note-amber" id="sched-note"></div>
+  </div>
+
+  <!-- LOG PAYMENT -->
+  <div class="pane" id="pane-log-payment">
+    <div class="note note-blue">Log every SSI payment you receive. Keep bank statements as backup.</div>
+    <div class="form-section">
+      <label class="form-label">Date received</label>
+      <input type="date" class="form-input" id="pay-date">
+    </div>
+    <div class="form-section">
+      <label class="form-label">Payment type</label>
+      <select class="form-select" id="pay-type">
+        <option value="Regular SSI">Regular SSI (monthly)</option>
+        <option value="Backpay installment">Backpay installment</option>
+        <option value="Immediate payment">Immediate payment</option>
+        <option value="Corrected payment">Corrected payment</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="form-section">
+      <label class="form-label">Amount</label>
+      <input type="number" class="form-input" id="pay-amount" placeholder="0.00" step="0.01" inputmode="decimal">
+    </div>
+    <div class="form-section">
+      <label class="form-label">Covers period (e.g. March 2025)</label>
+      <input type="text" class="form-input" id="pay-period" placeholder="Optional">
+    </div>
+    <div class="form-section">
+      <label class="form-label">Notes (rep name, reference number)</label>
+      <textarea class="form-textarea" id="pay-notes" placeholder="Optional"></textarea>
+    </div>
+    <button class="btn-primary" onclick="addPayment()">Add payment</button>
+  </div>
+
+  <!-- LOG EXPENSE -->
+  <div class="pane" id="pane-log-expense">
+    <div class="note note-blue">Tracking expenses protects you if SSA ever questions past payments.</div>
+    <div class="form-row form-section">
+      <div>
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="exp-date">
+      </div>
+      <div>
+        <label class="form-label">Amount</label>
+        <input type="number" class="form-input" id="exp-amount" placeholder="0.00" step="0.01" inputmode="decimal">
+      </div>
+    </div>
+    <div class="form-section">
+      <label class="form-label">Category</label>
+      <select class="form-select" id="exp-cat">
+        <option>Housing / rent</option>
+        <option>Food / groceries</option>
+        <option>Medical / prescriptions</option>
+        <option>Utilities</option>
+        <option>Transportation</option>
+        <option>Clothing</option>
+        <option>Personal care</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-section">
+      <label class="form-label">Description</label>
+      <input type="text" class="form-input" id="exp-desc" placeholder="What was purchased">
+    </div>
+    <div class="form-section">
+      <label class="form-label">Notes (receipt, store)</label>
+      <textarea class="form-textarea" id="exp-notes" placeholder="Optional"></textarea>
+    </div>
+    <button class="btn-primary" onclick="addExpense()">Add expense</button>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="pane" id="pane-history">
+    <div class="card" id="history-card"></div>
+  </div>
+
+  <!-- SETTINGS & EXPORT -->
+  <div class="pane" id="pane-settings">
+    <p class="section-heading">Assumptions</p>
+    <div class="note note-amber">These are estimated. Correct any figure your SSA paperwork shows.</div>
+    <div class="card">
+      <div class="assumption-row">
+        <span class="assumption-key">Correct monthly rate</span>
+        <input class="assumption-input" type="number" id="a-correct" value="725" step="0.01" onchange="recalc()">
+      </div>
+      <div class="assumption-row">
+        <span class="assumption-key">Old monthly rate</span>
+        <input class="assumption-input" type="number" id="a-old" value="195" step="0.01" onchange="recalc()">
+      </div>
+      <div class="assumption-row">
+        <span class="assumption-key">Backpay (3 installments)</span>
+        <input class="assumption-input" type="number" id="a-backpay" value="7700" step="0.01" onchange="recalc()">
+      </div>
+      <div class="assumption-row">
+        <span class="assumption-key">Immediate payment (Sat)</span>
+        <input class="assumption-input" type="number" id="a-immediate" value="2982" step="0.01" onchange="recalc()">
+      </div>
+      <div class="assumption-row">
+        <span class="assumption-key">Received today</span>
+        <input class="assumption-input" type="number" id="a-today" value="200" step="0.01" onchange="recalc()">
+      </div>
+      <div class="assumption-row">
+        <span class="assumption-key">Backpay starts</span>
+        <span class="assumption-val">March 2025</span>
+      </div>
+    </div>
+
+    <p class="section-heading">Export record</p>
+    <div class="note note-blue">Generate monthly and save a copy outside this app -- email it to yourself or print it.</div>
+    <button class="btn-primary" onclick="generateExport()" style="background:var(--bg3);color:var(--accent);border:1px solid var(--accent);">Generate export text</button>
+    <div id="export-output"></div>
+
+    <p class="section-heading" style="margin-top:24px;">How to install this as an app</p>
+    <div class="card">
+      <div class="entry-row"><div class="entry-body">
+        <div class="entry-desc">1. Open this file in Safari</div>
+        <div class="entry-meta">Must be Safari, not Chrome or Firefox</div>
+      </div></div>
+      <div class="entry-row"><div class="entry-body">
+        <div class="entry-desc">2. Tap the Share button</div>
+        <div class="entry-meta">The box with an arrow pointing up, bottom center</div>
+      </div></div>
+      <div class="entry-row"><div class="entry-body">
+        <div class="entry-desc">3. Tap "Add to Home Screen"</div>
+        <div class="entry-meta">Scroll down in the share sheet if needed</div>
+      </div></div>
+      <div class="entry-row"><div class="entry-body">
+        <div class="entry-desc">4. Tap "Add"</div>
+        <div class="entry-meta">It will appear on your home screen like any app</div>
+      </div></div>
+    </div>
+    <div class="note note-amber">Important: always export before clearing Safari data or switching phones. Your records live only on this device.</div>
+  </div>
+
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showPane('summary',this)">
+    <span class="tab-icon">◎</span>Summary
+  </button>
+  <button class="tab-btn" onclick="showPane('schedule',this)">
+    <span class="tab-icon">≡</span>Schedule
+  </button>
+  <button class="tab-btn" onclick="showPane('log-payment',this)">
+    <span class="tab-icon">＋</span>Payment
+  </button>
+  <button class="tab-btn" onclick="showPane('log-expense',this)">
+    <span class="tab-icon">－</span>Expense
+  </button>
+  <button class="tab-btn" onclick="showPane('history',this)">
+    <span class="tab-icon">↺</span>History
+  </button>
+  <button class="tab-btn" onclick="showPane('settings',this)">
+    <span class="tab-icon">⚙</span>Settings
+  </button>
+</div>
+
+<script>
+var entries = [];
+try { entries = JSON.parse(localStorage.getItem('ssi_tracker_v1') || '[]'); } catch(e) {}
+
+function save() { try { localStorage.setItem('ssi_tracker_v1', JSON.stringify(entries)); } catch(e) {} }
+function fmt(n) { return '$' + parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function gv(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+function getA() {
+  return {
+    correct: gv('a-correct'),
+    old: gv('a-old'),
+    backpay: gv('a-backpay'),
+    immediate: gv('a-immediate'),
+    today: gv('a-today')
+  };
+}
+
+function buildSchedule(a) {
+  var rows = [];
+  var d = new Date(2025, 2, 1);
+  var end = new Date(2026, 4, 1);
+  while (d <= end) {
+    var mo = d.getMonth(); var yr = d.getFullYear();
+    var isToday = (yr === 2026 && mo === 4);
+    var paid = isToday ? a.today : a.old;
+    var status = isToday ? 'partial' : 'expected';
+    var note = isToday ? 'Received May 1' : '';
+    rows.push({
+      label: d.toLocaleString('default',{month:'long',year:'numeric'}),
+      month: mo, year: yr, paid, correct: a.correct, status, note
+    });
+    d.setMonth(d.getMonth() + 1);
+  }
+  return rows;
+}
+
+function recalc() {
+  var a = getA();
+  var rows = buildSchedule(a);
+  var totalOwed = rows.reduce((s,r) => s + Math.max(0, r.correct - r.paid), 0);
+  var totalPromised = a.backpay + a.immediate + a.today;
+  var diff = totalPromised - totalOwed;
+
+  renderMetrics(a, totalOwed, totalPromised);
+  renderRecent();
+  renderSchedule(rows, totalOwed, totalPromised, diff);
+
+  var hn = document.getElementById('header-note');
+  hn.textContent = 'Assumed rate: ' + fmt(a.correct) + '/mo -- SSA paying ' + fmt(totalPromised) + ' total';
+}
+
+function renderMetrics(a, totalOwed, totalPromised) {
+  var payments = entries.filter(e => e.kind === 'payment');
+  var expenses = entries.filter(e => e.kind === 'expense');
+  var totalPay = payments.reduce((s,e) => s+e.amount, 0);
+  var totalExp = expenses.reduce((s,e) => s+e.amount, 0);
+  var backpayLogged = payments.filter(e => e.type !== 'Regular SSI').reduce((s,e) => s+e.amount, 0);
+  var stillExpected = Math.max(0, totalPromised - backpayLogged);
+
+  document.getElementById('metrics').innerHTML =
+    '<div class="metric"><div class="metric-label">Total promised</div><div class="metric-value">' + fmt(totalPromised) + '</div></div>' +
+    '<div class="metric"><div class="metric-label">Backpay logged</div><div class="metric-value green">' + fmt(backpayLogged) + '</div></div>' +
+    '<div class="metric"><div class="metric-label">Still expected</div><div class="metric-value amber">' + fmt(stillExpected) + '</div></div>' +
+    '<div class="metric"><div class="metric-label">Expenses logged</div><div class="metric-value red">' + fmt(totalExp) + '</div></div>';
+}
+
+function renderRecent() {
+  var sorted = [...entries].sort((a,b) => b.date.localeCompare(a.date)).slice(0,8);
+  var el = document.getElementById('recent-card');
+  if (!sorted.length) { el.innerHTML = '<div class="empty-state">No entries yet.<br>Log your first payment above.</div>'; return; }
+  el.innerHTML = sorted.map(e => {
+    var isPayment = e.kind === 'payment';
+    return '<div class="entry-row">' +
+      '<div class="entry-dot" style="background:' + (isPayment ? 'var(--green)' : 'var(--amber)') + '"></div>' +
+      '<div class="entry-body">' +
+        '<div class="entry-desc">' + (e.desc || e.type || '') + '</div>' +
+        '<div class="entry-meta">' + e.date + (e.period ? ' -- ' + e.period : '') + '</div>' +
+      '</div>' +
+      '<div class="entry-amount ' + (isPayment ? 'green' : 'red') + '">' + (isPayment ? '+' : '-') + fmt(e.amount) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderSchedule(rows, totalOwed, totalPromised, diff) {
+  var sc = document.getElementById('schedule-card');
+  sc.innerHTML = rows.map(r => {
+    var owed = Math.max(0, r.correct - r.paid);
+    var badge = r.status === 'received' ? '<span class="badge badge-green">Received</span>' :
+                r.status === 'partial' ? '<span class="badge badge-amber">Partial</span>' :
+                '<span class="badge badge-gray">Expected</span>';
+    return '<div class="schedule-row">' +
+      '<div class="schedule-month">' +
+        '<div class="schedule-month-name">' + r.label + '</div>' +
+        '<div class="schedule-month-detail">Paid ' + fmt(r.paid) + ' -- should be ' + fmt(r.correct) + (r.note ? ' -- ' + r.note : '') + '</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
+        '<div class="schedule-owed">' + fmt(owed) + '</div>' +
+        badge +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('sched-total-owed').textContent = fmt(totalOwed);
+  document.getElementById('sched-total-promised').textContent = fmt(totalPromised);
+  document.getElementById('sched-diff').textContent = fmt(Math.abs(diff));
+  document.getElementById('sched-note').textContent = diff > 0
+    ? 'SSA is paying ' + fmt(diff) + ' more than the month-by-month shortfall adds up to. This may reflect additional adjustments or a slightly different rate. Request an itemized letter from SSA.'
+    : diff < 0
+    ? 'SSA is paying ' + fmt(Math.abs(diff)) + ' less than the schedule calculates. Investigate with SSA.'
+    : 'SSA payment matches the schedule calculation exactly.';
+}
+
+function renderHistory() {
+  var sorted = [...entries].sort((a,b) => b.date.localeCompare(a.date));
+  var el = document.getElementById('history-card');
+  if (!sorted.length) { el.innerHTML = '<div class="empty-state">No entries yet.</div>'; return; }
+  el.innerHTML = sorted.map(e => {
+    var isPayment = e.kind === 'payment';
+    return '<div class="entry-row">' +
+      '<div class="entry-dot" style="background:' + (isPayment ? 'var(--green)' : 'var(--amber)') + '"></div>' +
+      '<div class="entry-body">' +
+        '<div class="entry-desc">' + (e.desc || e.type || '') + '</div>' +
+        '<div class="entry-meta">' + e.date + (e.notes ? ' -- ' + e.notes : '') + '</div>' +
+        '<button class="btn-danger" onclick="deleteEntry(' + e.id + ')">Remove</button>' +
+      '</div>' +
+      '<div class="entry-amount ' + (isPayment ? 'green' : 'red') + '">' + (isPayment ? '+' : '-') + fmt(e.amount) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function showPane(id, btn) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  document.getElementById('pane-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id === 'history') renderHistory();
+  recalc();
+}
+
+function addPayment() {
+  var date = document.getElementById('pay-date').value;
+  var type = document.getElementById('pay-type').value;
+  var amount = parseFloat(document.getElementById('pay-amount').value);
+  var period = document.getElementById('pay-period').value;
+  var notes = document.getElementById('pay-notes').value;
+  if (!amount || isNaN(amount)) { alert('Please enter an amount.'); return; }
+  if (!date) { alert('Please enter a date.'); return; }
+  entries.push({ id: Date.now(), kind: 'payment', date, type, amount, period, notes, desc: type + (period ? ' ('+period+')' : '') });
+  save(); recalc();
+  ['pay-date','pay-amount','pay-period','pay-notes'].forEach(id => document.getElementById(id).value = '');
+  alert('Payment logged.');
+}
+
+function addExpense() {
+  var date = document.getElementById('exp-date').value;
+  var amount = parseFloat(document.getElementById('exp-amount').value);
+  var cat = document.getElementById('exp-cat').value;
+  var desc = document.getElementById('exp-desc').value || cat;
+  var notes = document.getElementById('exp-notes').value;
+  if (!amount || isNaN(amount)) { alert('Please enter an amount.'); return; }
+  if (!date) { alert('Please enter a date.'); return; }
+  entries.push({ id: Date.now(), kind: 'expense', date, cat, type: cat, amount, desc, notes });
+  save(); recalc();
+  ['exp-date','exp-amount','exp-desc','exp-notes'].forEach(id => document.getElementById(id).value = '');
+  alert('Expense logged.');
+}
+
+function deleteEntry(id) {
+  if (!confirm('Remove this entry?')) return;
+  entries = entries.filter(e => e.id !== id);
+  save(); renderHistory(); recalc();
+}
+
+function generateExport() {
+  var a = getA();
+  var rows = buildSchedule(a);
+  var payments = entries.filter(e => e.kind==='payment').sort((a,b)=>a.date.localeCompare(b.date));
+  var expenses = entries.filter(e => e.kind==='expense').sort((a,b)=>a.date.localeCompare(b.date));
+  var totalOwed = rows.reduce((s,r) => s+Math.max(0,r.correct-r.paid),0);
+  var totalPromised = a.backpay + a.immediate + a.today;
+  var lines = [
+    'SSI PAYMENT & EXPENSE RECORD',
+    'Exported: ' + new Date().toLocaleDateString(),
+    '='.repeat(44),
+    '',
+    'ASSUMPTIONS',
+    '  Correct monthly rate: ' + fmt(a.correct),
+    '  Old monthly rate: ' + fmt(a.old),
+    '  Backpay (3 installments): ' + fmt(a.backpay),
+    '  Immediate payment: ' + fmt(a.immediate),
+    '  Received today: ' + fmt(a.today),
+    '  Total SSA paying: ' + fmt(totalPromised),
+    '  Schedule shortfall: ' + fmt(totalOwed),
+    '  Difference: ' + fmt(Math.abs(totalPromised - totalOwed)),
+    '',
+    'MONTHLY SCHEDULE',
+    '-'.repeat(44)
+  ];
+  rows.forEach(r => {
+    lines.push(r.label + ' | Paid: ' + fmt(r.paid) + ' | Owed: ' + fmt(Math.max(0,r.correct-r.paid)) + ' | ' + r.status.toUpperCase() + (r.note ? ' | ' + r.note : ''));
+  });
+  lines.push('');
+  lines.push('PAYMENTS RECEIVED');
+  lines.push('-'.repeat(44));
+  if (!payments.length) lines.push('(none logged yet)');
+  payments.forEach(e => lines.push(e.date + ' | ' + e.type + ' | ' + fmt(e.amount) + (e.period ? ' | '+e.period : '') + (e.notes ? ' | '+e.notes : '')));
+  lines.push('TOTAL: ' + fmt(payments.reduce((s,e)=>s+e.amount,0)));
+  lines.push('');
+  lines.push('EXPENSES');
+  lines.push('-'.repeat(44));
+  if (!expenses.length) lines.push('(none logged yet)');
+  expenses.forEach(e => lines.push(e.date + ' | ' + (e.cat||e.type) + ' | ' + fmt(e.amount) + ' | ' + (e.desc||'') + (e.notes ? ' | '+e.notes : '')));
+  lines.push('TOTAL: ' + fmt(expenses.reduce((s,e)=>s+e.amount,0)));
+  document.getElementById('export-output').innerHTML = '<div class="export-text">' + lines.join('\n') + '</div>';
+}
+
+recalc();
+</script>
+</body>
+</html>
